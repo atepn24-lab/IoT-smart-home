@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Home Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        body {
+
+            margin: 0;
+
+            font-family: Arial;
+
+            background: #111827;
+
+            color: white;
+        }
+
+        h1 {
+
+            text-align: center;
+
+            padding: 20px;
+        }
+
+        .container {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(300px, 1fr));
+
+            gap: 20px;
+
+            padding: 20px;
+        }
+
+        .card {
+
+            background: #1f2937;
+
+            padding: 20px;
+
+            border-radius: 15px;
+        }
+
+        .value {
+
+            font-size: 35px;
+
+            margin-top: 10px;
+        }
+
+        button {
+
+            width: 100%;
+
+            margin-top: 10px;
+
+            padding: 12px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            background: #2563eb;
+
+            color: white;
+
+            cursor: pointer;
+        }
+
+        canvas {
+
+            margin-top: 20px;
+
+            background: #111827;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<h1>🏠 Smart Home Dashboard</h1>
+
+<div class="container">
+
+    <!-- CLIMATE -->
+
+    <div class="card">
+
+        <h2>🌡 Climate</h2>
+
+        <div class="value" id="temp">
+            0 °C
+        </div>
+
+        <div id="humidity">
+            Humidity: 0 %
+        </div>
+
+        <canvas id="tempChart"></canvas>
+
+    </div>
+
+    <!-- LIGHT -->
+
+    <div class="card">
+
+        <h2>💡 Smart Light</h2>
+
+        <div class="value" id="light">
+            OFF
+        </div>
+
+        <div id="motion">
+            Motion: NO
+        </div>
+
+        <button onclick="lightOn()">
+            Turn ON
+        </button>
+
+        <button onclick="lightOff()">
+            Turn OFF
+        </button>
+
+        <button onclick="autoMode()">
+            AUTO MODE
+        </button>
+
+    </div>
+
+    <!-- SECURITY -->
+
+    <div class="card">
+
+        <h2>🔒 Security</h2>
+
+        <div class="value" id="alarm">
+            SAFE
+        </div>
+
+        <div id="securityState">
+            DISARMED
+        </div>
+
+        <div id="distance">
+            Distance: 0 cm
+        </div>
+
+        <button onclick="armSecurity()">
+            ARM SECURITY
+        </button>
+
+        <button onclick="disarmSecurity()">
+            DISARM SECURITY
+        </button>
+
+    </div>
+
+    <!-- GAS -->
+
+    <div class="card">
+
+        <h2>🔥 Gas Sensor</h2>
+
+        <div class="value" id="gasStatus">
+            SAFE
+        </div>
+
+        <div id="gasValue">
+            Gas Value: 0
+        </div>
+
+        <button onclick="gasBuzzerOn()">
+            GAS BUZZER ON
+        </button>
+
+        <button onclick="gasBuzzerOff()">
+            GAS BUZZER OFF
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+    // ================= CHART =================
+
+    const ctx =
+        document.getElementById('tempChart');
+
+    const tempChart =
+        new Chart(ctx, {
+
+        type: 'line',
+
+        data: {
+
+            labels: [],
+
+            datasets: [{
+
+                label: 'Temperature',
+
+                data: [],
+
+                borderColor: '#60a5fa',
+
+                tension: 0.3
+            }]
+        }
+    });
+
+    // ================= UPDATE =================
+
+    async function updateDashboard() {
+
+        const response =
+            await fetch('/status');
+
+        const data =
+            await response.json();
+
+        // ================= SECURITY =================
+
+        document.getElementById(
+            "securityState"
+        ).innerText =
+            data.securityArmed
+            ? "ARMED"
+            : "DISARMED";
+
+        // ================= TEMP =================
+
+        document.getElementById("temp")
+            .innerText =
+            data.temperature + " °C";
+
+        // ================= HUMIDITY =================
+
+        document.getElementById("humidity")
+            .innerText =
+            "Humidity: " +
+            data.humidity + " %";
+
+        // ================= LIGHT =================
+
+        document.getElementById("light")
+            .innerText =
+            data.light ? "ON" : "OFF";
+
+        // ================= MOTION =================
+
+        document.getElementById("motion")
+            .innerText =
+            "Motion: " +
+            (data.motion ? "YES" : "NO");
+
+        // ================= ALARM =================
+
+        document.getElementById("alarm")
+            .innerText =
+            data.alarm
+            ? "⚠ ALARM ACTIVE"
+            : "✅ SAFE";
+
+        // ================= DISTANCE =================
+
+        document.getElementById("distance")
+            .innerText =
+            "Distance: " +
+            data.distance +
+            " cm";
+
+        // ================= GAS =================
+
+        document.getElementById("gasValue")
+            .innerText =
+            "Gas Value: " +
+            data.gasValue;
+
+        document.getElementById("gasStatus")
+            .innerText =
+            data.gasDetected
+            ? "⚠ GAS DETECTED"
+            : "✅ SAFE";
+
+        // ================= GRAPH =================
+
+        const now =
+            new Date().toLocaleTimeString();
+
+        tempChart.data.labels.push(now);
+
+        tempChart.data.datasets[0]
+            .data.push(data.temperature);
+
+        if (
+            tempChart.data.labels.length > 20
+        ) {
+
+            tempChart.data.labels.shift();
+
+            tempChart.data.datasets[0]
+                .data.shift();
+        }
+
+        tempChart.update();
+    }
+
+    // ================= BUTTONS =================
+
+    async function armSecurity() {
+
+        await fetch('/security/arm');
+    }
+
+    async function disarmSecurity() {
+
+        await fetch('/security/disarm');
+    }
+
+    async function lightOn() {
+
+        await fetch('/light/on');
+    }
+
+    async function lightOff() {
+
+        await fetch('/light/off');
+    }
+
+    async function autoMode() {
+
+        await fetch('/light/auto');
+    }
+
+    async function gasBuzzerOn() {
+
+        await fetch('/gasbuzzer/on');
+    }
+
+    async function gasBuzzerOff() {
+
+        await fetch('/gasbuzzer/off');
+    }
+
+    // ================= AUTO UPDATE =================
+
+    setInterval(
+        updateDashboard,
+        1000
+    );
+
+</script>
+
+</body>
+</html>
